@@ -9,6 +9,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
+@Table(
+	uniqueConstraints = {
+		@UniqueConstraint(columnNames = {"dictWordId", "text"})
+	}
+)
 public class DictTrans {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,6 +21,5 @@ public class DictTrans {
 
 	private Long dictWordId;
 
-	@Column(unique = true)
 	private String text;
 }
