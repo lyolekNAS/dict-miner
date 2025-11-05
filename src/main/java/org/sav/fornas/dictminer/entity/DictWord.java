@@ -17,4 +17,8 @@ public class DictWord {
 
 	@Column(nullable = false)
 	private Integer state = 0;
+
+	public void addState(Integer newState){
+		state = state | newState;
+	}
 }

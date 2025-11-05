@@ -27,13 +27,19 @@ public class DictMinerSchedule {
 	private final DictWordRepository dictWordRepository;
 	private final DictMinerService dictMinerService;
 
-	@Scheduled(fixedRate = 60_000)
+	@Scheduled(fixedRate = 30_000)
 	public void mineMyMemory() {
 		log.info(">>> started MyMemory");
-		List<DictWord> words = dictWordRepository.findWordsToProcess(1);
-		for(DictWord word: words){
-			dictMinerService.processWordMyMemory(word);
-		}
+		DictWord word = dictWordRepository.findWordToProcess(WordStates.MY_MEMORY.getId());
+		dictMinerService.processWordMyMemory(word);
 		log.info(">>> finished MyMemory");
+	}
+
+	@Scheduled(fixedRate = 5_000)
+	public void mineDatamuseMeansLike() {
+		log.info(">>> started DatamuseMeansLike");
+		DictWord word = dictWordRepository.findWordToProcess(WordStates.DATAMUSE_ML.getId());
+		dictMinerService.processWordDatamuseMeansLike(word);
+		log.info(">>> finished DatamuseMeansLike");
 	}
 }

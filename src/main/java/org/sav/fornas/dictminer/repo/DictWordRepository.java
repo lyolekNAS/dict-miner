@@ -16,7 +16,7 @@ public interface DictWordRepository extends JpaRepository<DictWord, Long> {
             FROM dict_word dw
             WHERE (dw.state & :state) = 0
             ORDER BY RAND()
-            LIMIT 2
+            LIMIT 1
         """, nativeQuery = true)
-	List<DictWord> findWordsToProcess(@Param("state") Integer state);
+	DictWord findWordToProcess(@Param("state") Integer state);
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.sav.fornas.dictminer.entity.DictTrans;
 import org.sav.fornas.dictminer.entity.DictWord;
+import org.sav.fornas.dictminer.model.datamuse.DatamuseWord;
 import org.sav.fornas.dictminer.model.mymemory.MyMemoryResponse;
 import org.sav.fornas.dictminer.model.mymemory.WordStates;
 import org.sav.fornas.dictminer.repo.DictTransRepository;
@@ -26,6 +27,7 @@ public class DictMinerService {
 	private final DictWordRepository dictWordRepository;
 	private final DictTransRepository dictTransRepository;
 	private final MyMemoryTranslator myMemoryTranslator;
+	private final DatamuseService datamuseService;
 
 
 	public void importWordsFromFile() throws IOException {
@@ -45,12 +47,9 @@ public class DictMinerService {
 		}
 	}
 
-
-
-
 	@Transactional
 	public void processWordMyMemory(DictWord word){
-		log.info(">>> word:{}", word.getText());
+		log.debug(">>> word:{}", word.getText());
 		MyMemoryResponse resp = myMemoryTranslator.translate(word.getText());
 		List<String> rez = resp.getMatches().stream()
 				.filter(w -> w.getSegment().equalsIgnoreCase(word.getText()))
@@ -66,12 +65,31 @@ public class DictMinerService {
 					.build();
 			dictTransRepository.save(dt);
 		});
-		word.setState(word.getState() | WordStates.MY_MEMORY.getId());
+		word.addState(WordStates.MY_MEMORY.getId());
 		dictWordRepository.save(word);
-		log.info(">>> resp:{}", resp);
-		log.info(">>> rez:{}", rez);
-
+		log.trace(">>> resp:{}", resp);
+		log.debug(">>> rez:{}", rez);
 	}
+
+	@Transactional
+	public void processWordDatamuseMeansLike(DictWord word){
+		log.debug(">>> word:{}", word.getText());
+		List<DatamuseWord> words = datamuseService.getMeansLike(word.getText());
+
+		log.debug(">>> found:{}", words.size());
+		words.forEach(dw -> {
+			dictWordRepository.findByText(dw.getWord()).orElseGet(() -> {
+				DictWord w = new DictWord();
+				w.setText(dw.getWord());
+				w.addState(WordStates.DATAMUSE_FOUND.getId());
+				log.debug(">>> added:{}", w.getText());
+				return dictWordRepository.save(w);
+			});
+		});
+		word.addState(word.getState() | WordStates.DATAMUSE_ML.getId());
+		dictWordRepository.save(word);
+	}
+
 }
 
 
