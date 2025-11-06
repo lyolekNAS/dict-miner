@@ -2,19 +2,10 @@ package org.sav.fornas.dictminer.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.sav.fornas.dictminer.entity.DictTrans;
-import org.sav.fornas.dictminer.entity.DictTransAzure;
 import org.sav.fornas.dictminer.entity.DictWord;
-import org.sav.fornas.dictminer.model.azure.AzureResponse;
-import org.sav.fornas.dictminer.model.azure.AzureTranslation;
-import org.sav.fornas.dictminer.model.datamuse.DatamuseWord;
-import org.sav.fornas.dictminer.model.mymemory.MyMemoryResponse;
 import org.sav.fornas.dictminer.model.mymemory.WordStates;
-import org.sav.fornas.dictminer.repo.DictTransAzureRepository;
-import org.sav.fornas.dictminer.repo.DictTransRepository;
 import org.sav.fornas.dictminer.repo.DictWordRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,98 +19,43 @@ import java.util.Objects;
 public class DictMinerService {
 
 	private final DictWordRepository dictWordRepository;
-	private final DictTransRepository dictTransRepository;
-	private final DictTransAzureRepository dictTransAzureRepository;
-	private final MyMemoryTranslator myMemoryTranslator;
-	private final AzureTranslator azureTranslator;
-	private final DatamuseService datamuseService;
-
-	public void importWordsFromFile() throws IOException {
-		try (var reader = new BufferedReader(
-				new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/words.txt"))))) {
-
-			reader.lines()
-					.map(String::trim)
-					.filter(s -> !s.isEmpty())
-					.forEach(text -> {
-						dictWordRepository.findByText(text).orElseGet(() -> {
-							DictWord w = new DictWord();
-							w.setText(text);
-							return dictWordRepository.save(w);
-						});
-					});
-		}
-	}
-
-	@Transactional
-	public void processWordMyMemory(DictWord word){
-		log.debug(">>> word:{}", word.getText());
-		MyMemoryResponse resp = myMemoryTranslator.translate(word.getText());
-		List<String> rez = resp.getMatches().stream()
-				.filter(w -> w.getSegment().equalsIgnoreCase(word.getText()))
-				.map(w -> w.getTranslation().toLowerCase())
-				.filter(translation -> !translation.equals(word.getText()))
-				.filter(translation -> !translation.contains(" "))
-				.distinct()
-				.toList();
-
-		rez.forEach(w -> {
-			DictTrans dt = DictTrans.builder()
-					.dictWordId(word.getId())
-					.text(w)
-					.build();
-			dictTransRepository.save(dt);
-		});
-		word.addState(WordStates.MY_MEMORY.getId());
-		dictWordRepository.save(word);
-		log.trace(">>> resp:{}", resp);
-		log.debug(">>> rez:{}", rez);
-	}
-
-	@Transactional
-	public void processWordTransAzure(DictWord word){
-		log.debug(">>> word:{}", word.getText());
 
 
+	private final List<TranslatorStrategy> translators;
 
-		AzureResponse ar = azureTranslator.translate(word.getText());
-
-		log.debug(">>> ar:{}", ar.getTranslations().size());
-		for (AzureTranslation at : ar.getTranslations()) {
-			DictTransAzure dta = DictTransAzure.builder()
-					.dictWordId(word.getId())
-					.posTag(at.getPosTag())
-					.confidence(at.getConfidence())
-					.text(at.getDisplayTarget())
-					.build();
-
-			log.debug(">>> adding:{}", dta.getText());
-			dictTransAzureRepository.save(dta);
-		}
-		word.addState(WordStates.TRANS_AZURE.getId());
-		dictWordRepository.save(word);
-	}
-
-	@Transactional
-	public void processWordDatamuseMeansLike(DictWord word){
-		log.debug(">>> word:{}", word.getText());
-		List<DatamuseWord> words = datamuseService.getMeansLike(word.getText());
-
-		log.debug(">>> found:{}", words.size());
-		words.stream()
-			.filter(dw -> !dw.getWord().contains(" "))
-			.forEach(dw -> {
-				dictWordRepository.findByText(dw.getWord()).orElseGet(() -> {
-					DictWord w = new DictWord();
-					w.setText(dw.getWord());
-					w.addState(WordStates.DATAMUSE_FOUND.getId());
-					log.debug(">>> added:{}", w.getText());
-					return dictWordRepository.save(w);
+	public void process(WordStates state) {
+		DictWord word = dictWordRepository.findWordToProcess(state.getId());
+		translators.stream()
+				.filter(t -> t.getState() == state)
+				.findFirst()
+				.ifPresent(t -> {
+					if (word != null) {
+						((AbstractTranslator)t).execute(word, dictWordRepository);
+					} else {
+						log.debug("No word to process for state {}", state);
+					}
 				});
-		});
-		word.addState(word.getState() | WordStates.DATAMUSE_ML.getId());
-		dictWordRepository.save(word);
 	}
+
+
+
+
+//	public void importWordsFromFile() throws IOException {
+//		try (var reader = new BufferedReader(
+//				new InputStreamReader(Objects.requireNonNull(getClass().getResourceAsStream("/words.txt"))))) {
+//
+//			reader.lines()
+//					.map(String::trim)
+//					.filter(s -> !s.isEmpty())
+//					.forEach(text -> {
+//						dictWordRepository.findByText(text).orElseGet(() -> {
+//							DictWord w = new DictWord();
+//							w.setText(text);
+//							return dictWordRepository.save(w);
+//						});
+//					});
+//		}
+//	}
 
 }
 

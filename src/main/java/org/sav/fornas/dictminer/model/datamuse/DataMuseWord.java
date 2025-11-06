@@ -5,7 +5,7 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class DatamuseWord {
+public class DataMuseWord {
 	private String word;
 	private long score;
 	private List<String> tags;
