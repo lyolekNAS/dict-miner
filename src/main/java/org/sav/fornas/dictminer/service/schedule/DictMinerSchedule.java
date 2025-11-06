@@ -2,22 +2,12 @@ package org.sav.fornas.dictminer.service.schedule;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.sav.fornas.dictminer.entity.DictTrans;
 import org.sav.fornas.dictminer.entity.DictWord;
-import org.sav.fornas.dictminer.model.mymemory.MatchItem;
-import org.sav.fornas.dictminer.model.mymemory.MyMemoryResponse;
 import org.sav.fornas.dictminer.model.mymemory.WordStates;
-import org.sav.fornas.dictminer.repo.DictTransRepository;
 import org.sav.fornas.dictminer.repo.DictWordRepository;
 import org.sav.fornas.dictminer.service.DictMinerService;
-import org.sav.fornas.dictminer.service.MyMemoryTranslator;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -41,5 +31,13 @@ public class DictMinerSchedule {
 		DictWord word = dictWordRepository.findWordToProcess(WordStates.DATAMUSE_ML.getId());
 		dictMinerService.processWordDatamuseMeansLike(word);
 		log.info(">>> finished DatamuseMeansLike");
+	}
+
+	@Scheduled(fixedRate = 20_000)
+	public void mineTransAzure() {
+		log.info(">>> started TransAzure");
+		DictWord word = dictWordRepository.findWordToProcess(WordStates.TRANS_AZURE.getId());
+		dictMinerService.processWordTransAzure(word);
+		log.info(">>> finished TransAzure");
 	}
 }
